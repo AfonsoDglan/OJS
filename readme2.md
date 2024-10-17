@@ -18,72 +18,96 @@ Antes de começar, certifique-se de que você tem os seguintes itens instalados:
 - [Docker Compose](https://docs.docker.com/compose/)
 
 # Instalação
-### Clone o repositório
+## 1. Clone o repositório
 Para clonar o repositório do ojs:
 
 ```sh
-git clone https://github.com/pkp/docker-ojs.git
+git clone https://github.com/pkp/ojs.git
+```
+Agora acesso a pasto do repositório.
+```sh
+cd ojs
 ```
 
-### Renomei sua pasta
+## 2. Criação dos arquivos Docker Compose
 
-```sh
-mv docker-ojs meujornal
+No diretório do projeto, crie um arquivo docker-compose.yml
+
+```yaml
+
+services:
+  db:
+    image: mariadb:10.5
+    container_name: ojs_db
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: ojs
+      MYSQL_USER: ojs_user
+      MYSQL_PASSWORD: ojs_password
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - ojs_network
+
+  ojs:
+    build: .
+    container_name: ojs_app
+    depends_on:
+      - db
+    ports:
+      - "8080:80"
+    volumes:
+      - ojs_data:/var/www/html/public
+      - ojs_files:/var/www/files
+    environment:
+      DB_HOST: db
+      DB_NAME: ojs
+      DB_USER: ojs_user
+      DB_PASSWORD: ojs_password
+    networks:
+      - ojs_network
+
+volumes:
+  db_data:
+  ojs_data:
+
+networks:
+  ojs_network:
+
+
+```
+## 3. Criação da imagem Docker para o OJS
+No diretório do OJS, crie um arquivo Dockerfile:
+
+```Dockerfile
+FROM php:7.4-apache
+
+RUN apt-get update && apt-get install -y \
+    libpng-dev \
+    libjpeg-dev \
+    libfreetype6-dev \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install gd
+
+# Instalar dependências necessárias para o OJS
+RUN apt-get update && apt-get install -y git unzip curl
+
+# Clonar o código do OJS
+RUN git clone https://github.com/pkp/ojs.git /var/www/html
+
+# Configurar permissões
+RUN chown -R www-data:www-data /var/www/html
+
+# Expor a porta 80
+EXPOSE 80
+
 ```
 
-### Agora acesso a pasta do repositório.
+## 4. Construir e iniciar os containers
+Com o docker-compose.yml configurado, execute:
 
 ```sh
-cd meujornal
-```
-
-### Renomei o arquivo de variaveis de ambiente.
-
-```sh
-mv .env.TEMPLATE .env
-```
-
-### Baixe o arquivo de configuração do ojs de acordo com a cersão usada.
-
-```sh
-source .env && wget "https://github.com/pkp/ojs/raw/${OJS_VERSION}/config.TEMPLATE.inc.php" -O ./volumes/config/ojs.config.inc.php
-```
-Caso você esteja usando o windowns use o comando abaixo.
-
-```sh
-wget "https://github.com/pkp/ojs/raw/3_3_0-14/config.TEMPLATE.inc.php" -O ./volumes/config/ojs.config.inc.php
-```
-
-### Dê as permissões para as pstas.
-
-```sh
-sudo chown 100:101 ./volumes -R
-```
-```sh
-sudo chown 999:999 ./volumes/db -R
-```
-
-### Crie as pastas mapedas para volumes 
-
-```sh
-mkdir -p ./volumes/private
-```
-```sh
-mkdir -p ./volumes/public
-```
-
-### Dê as permissões para as pstas.
-
-```sh
-chmod -R 777 ./volumes/private
-```
-```sh
-chmod -R 777 ./volumes/public
-```
-
-### Agora para criar nossos coneiner e rodar a aplicação execulte
-```sh
-docker compose up -d
+docker compose up -d --build
 ```
 Isso irá iniciar os containers do MySQL e do OJS.
 
@@ -129,6 +153,21 @@ docker cp ojs_app:/var/www/html /path/to/backup
 # Atualização
 ## 1. Atualizar o OJS
 
+Para atualizar o OJS, primeiro baixe a nova versão do OJS do repositório:
+
+```sh
+git pull origin main
+```
+
+Depois, reinicie os containers:
+
+```sh
+docker compose down
+```
+
+```sh
+docker-compose up -d --build
+```
 
 # Restaurar de um Backup
 ## 1. Restaurar o banco de dados
