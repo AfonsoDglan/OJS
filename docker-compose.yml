@@ -1,0 +1,54 @@
+version: "3.8"
+
+networks:
+  inside:
+    external: false
+
+volumes:
+  db_data:
+  ojs_files:
+  ojs_public:
+  ojs_logs:
+  ojs_config:
+  ojs_cache:
+
+services:
+  db:
+    image: mariadb:10.2
+    container_name: "ojs_db_${COMPOSE_PROJECT_NAME:-demo}"
+    environment:
+      MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD:-ojsPwd}"
+      MYSQL_DATABASE: "${OJS_DB_NAME:-ojs}"
+      MYSQL_USER: "${OJS_DB_USER:-ojs}"
+      MYSQL_PASSWORD: "${OJS_DB_PASSWORD:-ojsPwd}"
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./volumes/dump:/docker-entrypoint-initdb.d
+    networks:
+      - inside
+    restart: always
+
+  ojs:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: "ojs_app_${COMPOSE_PROJECT_NAME:-demo}"
+    hostname: "${COMPOSE_PROJECT_NAME:-demo}"
+    ports:
+      - "${HTTP_PORT:-8081}:80"
+      - "${HTTPS_PORT:-8443}:443"
+    environment:
+      MYSQL_HOST: db
+      MYSQL_DATABASE: "${OJS_DB_NAME:-ojs}"
+      MYSQL_USER: "${OJS_DB_USER:-ojs}"
+      MYSQL_PASSWORD: "${OJS_DB_PASSWORD:-ojsPwd}"
+    volumes:
+      - ojs_files:/var/www/files
+      - ojs_public:/var/www/html/public
+      - ojs_logs:/var/log/apache2
+      - ojs_cache:/var/www/html/cache/opcache
+    networks:
+      - inside
+    depends_on:
+      - db
+    restart: always
