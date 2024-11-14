@@ -50,9 +50,11 @@ COPY --from=php-base /var/www/html /var/www/html
 COPY --from=node-builder /var/www/html /var/www/html
 
 # Configurar o diretório de cache e dar permissões corretas
-RUN mkdir -p /var/www/html/cache/opcache && \
-    chown -R www-data:www-data /var/www/html/cache && \
-    chmod -R 775 /var/www/html/cache
+RUN chown -R www-data:www-data /var/www/html && \
+    chmod -R 755 /var/www/html && \
+    mkdir -p /var/www/files /var/www/html/public /var/www/html/cache/opcache && \
+    chown -R www-data:www-data /var/www/files /var/www/html/public /var/www/html/cache/opcache
+
 
 # Expor a porta 80 para o Apache
 EXPOSE 80
